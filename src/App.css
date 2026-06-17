@@ -599,6 +599,13 @@ body {
   border-bottom: 1px solid #e2e8f0;
 }
 
+.auth-required-mark {
+  color: #dc3545;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-left: 2px;
+}
+
 @media (max-width: 767.98px) {
   .queue-summary-divider {
     border-right: 0;

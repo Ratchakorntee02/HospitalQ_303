@@ -1,26 +1,27 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { api, getAuthSession } from '../services/api.js';
 
-const bookings = [
+const fallbackBookings = [
   {
     id: 'apt-001',
     date: 'May 22, 2026',
-    time: '10:30 AM',
+    time: '10:30:00',
     department: 'General Medicine',
     doctor: 'Dr. Stone',
-    status: 'upcoming',
+    status: 'confirmed',
   },
   {
     id: 'apt-002',
     date: 'June 3, 2026',
-    time: '01:30 PM',
+    time: '13:30:00',
     department: 'Dental Clinic',
     doctor: 'Dr. Strang',
-    status: 'upcoming',
+    status: 'confirmed',
   },
   {
     id: 'apt-003',
     date: 'April 18, 2026',
-    time: '09:00 AM',
+    time: '09:00:00',
     department: 'General Medicine',
     doctor: 'Dr. Ratchakorn',
     status: 'completed',
@@ -28,18 +29,14 @@ const bookings = [
   {
     id: 'apt-004',
     date: 'March 12, 2026',
-    time: '02:00 PM',
+    time: '14:00:00',
     department: 'Pediatrics',
     doctor: 'Dr. Nopparat',
     status: 'completed',
   },
 ];
 
-const tabs = [
-  { id: 'all', label: 'All' },
-  { id: 'upcoming', label: 'Upcoming' },
-  { id: 'completed', label: 'Completed' },
-];
+const tabs = ['all', 'upcoming', 'completed'];
 
 const historyText = {
   en: {
@@ -48,6 +45,7 @@ const historyText = {
     all: 'All',
     upcoming: 'Upcoming',
     completed: 'Completed',
+    cancelled: 'Cancelled',
     dateTime: 'Date & Time',
     department: 'Department',
     doctor: 'Doctor',
@@ -56,6 +54,10 @@ const historyText = {
     reschedule: 'Reschedule',
     cancel: 'Cancel',
     empty: 'No booking records found for this filter.',
+    cancelSuccess: 'Appointment cancelled successfully.',
+    reschedulePrompt: 'Enter a new appointment date in YYYY-MM-DD format.',
+    rescheduleSuccess: 'Appointment rescheduled successfully.',
+    loginNotice: 'Login to load your real appointment history from the backend.',
   },
   th: {
     title: 'ประวัติการจอง',
@@ -63,6 +65,7 @@ const historyText = {
     all: 'ทั้งหมด',
     upcoming: 'กำลังจะมาถึง',
     completed: 'เสร็จสิ้นแล้ว',
+    cancelled: 'ยกเลิกแล้ว',
     dateTime: 'วันและเวลา',
     department: 'แผนก',
     doctor: 'แพทย์',
@@ -71,28 +74,99 @@ const historyText = {
     reschedule: 'เลื่อนนัด',
     cancel: 'ยกเลิก',
     empty: 'ไม่พบรายการจองในตัวกรองนี้',
+    cancelSuccess: 'ยกเลิกนัดหมายสำเร็จ',
+    reschedulePrompt: 'กรอกวันนัดใหม่ในรูปแบบ YYYY-MM-DD',
+    rescheduleSuccess: 'เลื่อนนัดหมายสำเร็จ',
+    loginNotice: 'เข้าสู่ระบบเพื่อโหลดประวัติการจองจริงจาก backend',
   },
 };
+
+const normalizeStatus = (status) => {
+  if (status === 'completed') {
+    return 'completed';
+  }
+
+  if (status === 'cancelled') {
+    return 'cancelled';
+  }
+
+  return 'upcoming';
+};
+
+const mapApiAppointment = (appointment) => ({
+  id: appointment.appointment_id,
+  date: appointment.appointment_date,
+  time: appointment.appointment_time,
+  department: appointment.department,
+  doctor: appointment.doctor_name,
+  status: appointment.status,
+});
 
 function BookingHistory({ language = 'en' }) {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [actionMessage, setActionMessage] = useState('');
+  const [bookingRecords, setBookingRecords] = useState(fallbackBookings);
+  const [isUsingFallback, setIsUsingFallback] = useState(true);
   const text = historyText[language];
+
+  const refreshAppointments = useCallback(() => {
+    const authSession = getAuthSession();
+
+    if (!authSession?.user?.id) {
+      return;
+    }
+
+    api.getPatientAppointments(authSession.user.id)
+      .then((appointments) => {
+        setBookingRecords(appointments.map(mapApiAppointment));
+        setIsUsingFallback(false);
+      })
+      .catch((apiError) => {
+        setActionMessage(apiError.message);
+        setBookingRecords(fallbackBookings);
+        setIsUsingFallback(true);
+      });
+  }, []);
+
+  useEffect(() => {
+    refreshAppointments();
+  }, [refreshAppointments]);
 
   const filteredBookings = useMemo(() => {
     if (activeTab === 'all') {
-      return bookings;
+      return bookingRecords;
     }
 
-    return bookings.filter((booking) => booking.status === activeTab);
-  }, [activeTab]);
+    return bookingRecords.filter((booking) => normalizeStatus(booking.status) === activeTab);
+  }, [activeTab, bookingRecords]);
 
-  const handleReschedule = (booking) => {
-    setActionMessage(`${text.reschedule}: ${booking.date} ${booking.time}`);
+  const handleReschedule = async (booking) => {
+    const newDate = window.prompt(text.reschedulePrompt, booking.date);
+
+    if (!newDate) {
+      return;
+    }
+
+    try {
+      await api.rescheduleAppointment(booking.id, {
+        new_date: newDate,
+        new_time: booking.time,
+      });
+      setActionMessage(text.rescheduleSuccess);
+      refreshAppointments();
+    } catch (apiError) {
+      setActionMessage(apiError.message);
+    }
   };
 
-  const handleCancel = (booking) => {
-    setActionMessage(`${text.cancel}: ${booking.date} ${booking.time}`);
+  const handleCancel = async (booking) => {
+    try {
+      await api.cancelAppointment(booking.id);
+      setActionMessage(text.cancelSuccess);
+      refreshAppointments();
+    } catch (apiError) {
+      setActionMessage(apiError.message);
+    }
   };
 
   return (
@@ -102,23 +176,27 @@ function BookingHistory({ language = 'en' }) {
           <div className="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
             <div>
               <h3 className="fw-bold text-dark-blue mb-2">{text.title}</h3>
-              <p className="text-muted mb-0">
-                {text.subtitle}
-              </p>
+              <p className="text-muted mb-0">{text.subtitle}</p>
             </div>
           </div>
 
+          {isUsingFallback && (
+            <div className="alert alert-warning border-0">
+              {text.loginNotice}
+            </div>
+          )}
+
           <ul className="nav nav-pills history-tabs mb-4">
             {tabs.map((tab) => (
-              <li className="nav-item flex-fill text-center" key={tab.id}>
+              <li className="nav-item flex-fill text-center" key={tab}>
                 <button
                   className={`nav-link w-100 fw-bold py-2 ${
-                    activeTab === tab.id ? 'active' : 'text-secondary'
+                    activeTab === tab ? 'active' : 'text-secondary'
                   }`}
                   type="button"
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => setActiveTab(tab)}
                 >
-                  {text[tab.id]}
+                  {text[tab]}
                 </button>
               </li>
             ))}
@@ -136,49 +214,57 @@ function BookingHistory({ language = 'en' }) {
                 </tr>
               </thead>
               <tbody>
-                {filteredBookings.map((booking) => (
-                  <tr key={booking.id}>
-                    <td className="py-3">
-                      <strong>{booking.date}</strong>
-                      <span className="text-muted ms-2">{booking.time}</span>
-                    </td>
-                    <td>{booking.department}</td>
-                    <td>{booking.doctor}</td>
-                    <td>
-                      {booking.status === 'completed' ? (
-                        <span className="badge history-badge-completed rounded-pill">
-                          {text.completed}
-                        </span>
-                      ) : (
-                        <span className="badge history-badge-upcoming rounded-pill">
-                          {text.upcoming}
-                        </span>
-                      )}
-                    </td>
-                    <td className="text-center">
-                      {booking.status === 'upcoming' ? (
-                        <div className="d-flex gap-2 justify-content-center">
-                          <button
-                            className="btn btn-sm btn-outline-primary"
-                            type="button"
-                            onClick={() => handleReschedule(booking)}
-                          >
-                            {text.reschedule}
-                          </button>
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            type="button"
-                            onClick={() => handleCancel(booking)}
-                          >
-                            {text.cancel}
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-muted">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {filteredBookings.map((booking) => {
+                  const normalizedStatus = normalizeStatus(booking.status);
+
+                  return (
+                    <tr key={booking.id}>
+                      <td className="py-3">
+                        <strong>{booking.date}</strong>
+                        <span className="text-muted ms-2">{booking.time}</span>
+                      </td>
+                      <td>{booking.department}</td>
+                      <td>{booking.doctor}</td>
+                      <td>
+                        {normalizedStatus === 'completed' ? (
+                          <span className="badge history-badge-completed rounded-pill">
+                            {text.completed}
+                          </span>
+                        ) : normalizedStatus === 'cancelled' ? (
+                          <span className="badge text-bg-secondary rounded-pill px-3 py-2">
+                            {text.cancelled}
+                          </span>
+                        ) : (
+                          <span className="badge history-badge-upcoming rounded-pill">
+                            {text.upcoming}
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-center">
+                        {normalizedStatus === 'upcoming' && !isUsingFallback ? (
+                          <div className="d-flex gap-2 justify-content-center">
+                            <button
+                              className="btn btn-sm btn-outline-primary"
+                              type="button"
+                              onClick={() => handleReschedule(booking)}
+                            >
+                              {text.reschedule}
+                            </button>
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              type="button"
+                              onClick={() => handleCancel(booking)}
+                            >
+                              {text.cancel}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { api, getAuthSession } from '../services/api.js';
 
 const departments = [
   {
@@ -6,13 +7,13 @@ const departments = [
     name: 'General Medicine',
     doctors: [
       {
-        id: 'stone',
+        id: 'D001',
         name: 'Dr. Stone',
         specialty: 'General Medicine',
         profile: 'General checkups, chronic disease care, fever, blood pressure, and diabetes consultation.',
       },
       {
-        id: 'sarah',
+        id: 'D003',
         name: 'Dr. Keerati',
         specialty: 'General Medicine',
         profile: 'Primary care, annual health checks, and follow-up consultation for adult patients.',
@@ -24,7 +25,7 @@ const departments = [
     name: 'Pediatrics',
     doctors: [
       {
-        id: 'somchai',
+        id: 'D003',
         name: 'Dr. Pheerathad',
         specialty: 'Pediatrics',
         profile: 'Child health, vaccination, fever, allergies, and common pediatric conditions.',
@@ -36,7 +37,7 @@ const departments = [
     name: 'Dental Clinic',
     doctors: [
       {
-        id: 'strang',
+        id: 'D002',
         name: 'Dr. Strang',
         specialty: 'Dental Clinic',
         profile: 'Dental checkups, scaling, fillings, and oral health consultation.',
@@ -46,10 +47,10 @@ const departments = [
 ];
 
 const timeSlots = [
-  { id: '09:00 - 10:00 AM', label: '09:00 - 10:00 AM', available: true },
-  { id: '10:00 - 11:00 AM', label: '10:00 - 11:00 AM', available: true },
-  { id: '01:00 - 02:00 PM', label: '01:00 - 02:00 PM', available: true },
-  { id: '02:00 - 03:00 PM', label: '02:00 - 03:00 PM (Full)', available: false },
+  { id: '09:00:00', label: '09:00 - 10:00 AM', available: true },
+  { id: '10:00:00', label: '10:00 - 11:00 AM', available: true },
+  { id: '13:00:00', label: '01:00 - 02:00 PM', available: true },
+  { id: '14:00:00', label: '02:00 - 03:00 PM (Full)', available: false },
 ];
 
 const bookingText = {
@@ -67,6 +68,9 @@ const bookingText = {
     step2: 'Step 2: Select Date and Time',
     appointmentDate: 'Appointment Date',
     slots: 'Available Time Slots',
+    noteLabel: 'Current Symptoms',
+    notePlaceholder: 'Describe current symptoms, concerns, or special requests for this visit.',
+    noteEmpty: 'No additional note',
     step3: 'Step 3: Review and Confirm',
     confirmed: 'Booking Confirmed',
     saved: 'Your hospital queue booking has been saved successfully.',
@@ -89,6 +93,9 @@ const bookingText = {
     step2: 'ขั้นตอนที่ 2: เลือกวันและเวลา',
     appointmentDate: 'วันที่นัดหมาย',
     slots: 'ช่วงเวลาที่ว่าง',
+    noteLabel: 'Current Symptoms',
+    notePlaceholder: 'ระบุอาการที่เป็นอยู่ ความกังวล หรือคำขอเพิ่มเติมสำหรับการเข้ารับบริการครั้งนี้',
+    noteEmpty: 'ไม่มีหมายเหตุเพิ่มเติม',
     step3: 'ขั้นตอนที่ 3: ตรวจสอบและยืนยัน',
     confirmed: 'จองคิวสำเร็จ',
     saved: 'ระบบบันทึกการจองคิวของคุณเรียบร้อยแล้ว',
@@ -105,7 +112,10 @@ function BookingQ({ language = 'en' }) {
   const [doctorId, setDoctorId] = useState('');
   const [appointmentDate, setAppointmentDate] = useState('');
   const [timeSlot, setTimeSlot] = useState('');
+  const [bookingNote, setBookingNote] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [bookingId, setBookingId] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const text = bookingText[language];
 
   const selectedDepartment = useMemo(
@@ -125,6 +135,8 @@ function BookingQ({ language = 'en' }) {
 
   const canGoStepTwo = departmentId && doctorId;
   const canGoStepThree = appointmentDate && timeSlot;
+  const noteDisplay = bookingNote.trim() || text.noteEmpty;
+  const selectedTimeSlotLabel = timeSlots.find((slot) => slot.id === timeSlot)?.label || timeSlot;
 
   const handleDepartmentChange = (event) => {
     setDepartmentId(event.target.value);
@@ -137,7 +149,35 @@ function BookingQ({ language = 'en' }) {
     setDoctorId('');
     setAppointmentDate('');
     setTimeSlot('');
+    setBookingNote('');
     setIsSubmitted(false);
+    setBookingId('');
+    setSubmitError('');
+  };
+
+  const handleConfirmBooking = async () => {
+    const authSession = getAuthSession();
+
+    if (!authSession?.token || !authSession?.user?.id) {
+      setSubmitError('Please login before booking an appointment.');
+      return;
+    }
+
+    try {
+      setSubmitError('');
+      const result = await api.bookAppointment({
+        patient_id: authSession.user.id,
+        doctor_id: doctorId,
+        appointment_date: appointmentDate,
+        appointment_time: timeSlot,
+        current_symptoms: bookingNote,
+      });
+
+      setBookingId(result.appointment_id || '');
+      setIsSubmitted(true);
+    } catch (apiError) {
+      setSubmitError(apiError.message);
+    }
   };
 
   if (isSubmitted) {
@@ -152,8 +192,9 @@ function BookingQ({ language = 'en' }) {
               <p><strong>{text.department}:</strong> {selectedDepartment?.name}</p>
               <p><strong>{text.doctorLabel}:</strong> {selectedDoctor?.name}</p>
               <p><strong>{text.appointmentDate}:</strong> {appointmentDate}</p>
-              <p><strong>{text.dateTime}:</strong> {timeSlot}</p>
-              <p className="mb-0"><strong>{text.queueId}</strong> OPD 692202</p>
+              <p><strong>{text.dateTime}:</strong> {selectedTimeSlotLabel}</p>
+              <p><strong>{text.noteLabel}:</strong> {noteDisplay}</p>
+              <p className="mb-0"><strong>{text.queueId}</strong> {bookingId || 'OPD 692202'}</p>
             </div>
 
             <button className="btn btn-primary btn-lg px-4" type="button" onClick={resetForm}>
@@ -281,6 +322,20 @@ function BookingQ({ language = 'en' }) {
                 </div>
               </div>
 
+              <div className="mb-4">
+                <label className="form-label fw-medium" htmlFor="booking-note">
+                  {text.noteLabel}
+                </label>
+                <textarea
+                  id="booking-note"
+                  className="form-control"
+                  rows="3"
+                  placeholder={text.notePlaceholder}
+                  value={bookingNote}
+                  onChange={(event) => setBookingNote(event.target.value)}
+                ></textarea>
+              </div>
+
               <div className="d-flex gap-2">
                 <button className="btn btn-lg btn-light border w-50 py-3" type="button" onClick={() => setStep(1)}>
                   {text.back}
@@ -305,18 +360,25 @@ function BookingQ({ language = 'en' }) {
                 <p><strong>{text.department}:</strong> {selectedDepartment?.name}</p>
                 <p><strong>{text.doctorLabel}:</strong> {selectedDoctor?.name}</p>
                 <p><strong>{text.appointmentDate}:</strong> {appointmentDate}</p>
-                <p><strong>{text.dateTime}:</strong> {timeSlot}</p>
+                <p><strong>{text.dateTime}:</strong> {selectedTimeSlotLabel}</p>
+                <p><strong>{text.noteLabel}:</strong> {noteDisplay}</p>
               </div>
 
               <div className="alert alert-info py-2">
                 {text.reminder}
               </div>
 
+              {submitError && (
+                <div className="alert alert-danger py-2">
+                  {submitError}
+                </div>
+              )}
+
               <div className="d-flex gap-2">
                 <button className="btn btn-lg btn-light border w-50 py-3" type="button" onClick={() => setStep(2)}>
                   {text.back}
                 </button>
-                <button className="btn btn-lg btn-success w-50 py-3" type="button" onClick={() => setIsSubmitted(true)}>
+                <button className="btn btn-lg btn-success w-50 py-3" type="button" onClick={handleConfirmBooking}>
                   {text.confirmBooking}
                 </button>
               </div>

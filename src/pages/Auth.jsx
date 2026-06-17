@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { api, saveAuthSession } from '../services/api.js';
 
 const initialLoginData = {
   identifier: '',
@@ -53,7 +54,7 @@ const authText = {
     other: 'Other',
     bloodType: 'Blood Type',
     selectBloodType: '-- Select blood type --',
-    allergies: 'Drug / Food Allergies',
+    allergies: 'Allergic to medicine',
     allergiesPlaceholder: 'Example: Penicillin, seafood, none',
     chronicDiseases: 'Chronic Diseases',
     chronicPlaceholder: 'Example: Diabetes, hypertension, asthma, none',
@@ -63,6 +64,7 @@ const authText = {
     emergencyContactPhone: 'Emergency Contact Phone',
     confirmPassword: 'Confirm Password',
     create: 'Create Account',
+    requiredHint: '*',
     loginSuccess: 'Login successful. Welcome back to Hospital Queue.',
     registerSuccess: 'Registration successful. Your patient profile has been saved.',
     passwordError: 'Password and confirm password do not match.',
@@ -107,11 +109,16 @@ const authText = {
     emergencyContactPhone: 'เบอร์ผู้ติดต่อฉุกเฉิน',
     confirmPassword: 'ยืนยันรหัสผ่าน',
     create: 'สร้างบัญชี',
+    requiredHint: '*',
     loginSuccess: 'เข้าสู่ระบบสำเร็จ ยินดีต้อนรับกลับสู่ Hospital Queue',
     registerSuccess: 'สมัครสมาชิกสำเร็จ ระบบบันทึกประวัติผู้ป่วยของคุณแล้ว',
     passwordError: 'รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน',
   },
 };
+
+function RequiredMark({ text }) {
+  return <span className="auth-required-mark">{text}</span>;
+}
 
 function Auth({ language = 'en' }) {
   const [activeMode, setActiveMode] = useState('login');
@@ -143,14 +150,29 @@ function Auth({ language = 'en' }) {
     setError('');
   };
 
-  const handleLoginSubmit = (event) => {
+  const handleLoginSubmit = async (event) => {
     event.preventDefault();
     setError('');
-    setMessage(text.loginSuccess);
-    setLoginData(initialLoginData);
+
+    try {
+      const result = await api.login({
+        email: loginData.identifier,
+        password: loginData.password,
+      });
+
+      saveAuthSession({
+        token: result.token,
+        role: result.role,
+        user: result.user,
+      });
+      setMessage(text.loginSuccess);
+      setLoginData(initialLoginData);
+    } catch (apiError) {
+      setError(apiError.message);
+    }
   };
 
-  const handleRegisterSubmit = (event) => {
+  const handleRegisterSubmit = async (event) => {
     event.preventDefault();
     setMessage('');
 
@@ -159,10 +181,30 @@ function Auth({ language = 'en' }) {
       return;
     }
 
-    setError('');
-    setMessage(text.registerSuccess);
-    setRegisterData(initialRegisterData);
-    setActiveMode('login');
+    try {
+      await api.register({
+        name: registerData.fullName,
+        phone: registerData.phone,
+        citizen_id: registerData.patientId,
+        email: registerData.email,
+        password: registerData.password,
+        birth_date: registerData.dateOfBirth,
+        gender: registerData.gender,
+        blood_type: registerData.bloodType,
+        allergies: registerData.allergies,
+        chronic_diseases: registerData.chronicDiseases,
+        current_medications: registerData.currentMedications,
+        emergency_contact_name: registerData.emergencyContactName,
+        emergency_contact_phone: registerData.emergencyContactPhone,
+      });
+
+      setError('');
+      setMessage(text.registerSuccess);
+      setRegisterData(initialRegisterData);
+      setActiveMode('login');
+    } catch (apiError) {
+      setError(apiError.message);
+    }
   };
 
   return (
@@ -281,7 +323,6 @@ function Auth({ language = 'en' }) {
                         name="fullName"
                         type="text"
                         className="form-control"
-                        required
                         value={registerData.fullName}
                         onChange={handleRegisterChange}
                       />
@@ -289,7 +330,7 @@ function Auth({ language = 'en' }) {
 
                     <div className="col-md-6">
                       <label className="form-label fw-medium" htmlFor="register-patient-id">
-                        {text.patientId}
+                        {text.patientId} <RequiredMark text={text.requiredHint} />
                       </label>
                       <input
                         id="register-patient-id"
@@ -304,7 +345,7 @@ function Auth({ language = 'en' }) {
 
                     <div className="col-md-6">
                       <label className="form-label fw-medium" htmlFor="register-email">
-                        {text.email}
+                        {text.email} <RequiredMark text={text.requiredHint} />
                       </label>
                       <input
                         id="register-email"
@@ -319,7 +360,7 @@ function Auth({ language = 'en' }) {
 
                     <div className="col-md-6">
                       <label className="form-label fw-medium" htmlFor="register-phone">
-                        {text.phone}
+                        {text.phone} <RequiredMark text={text.requiredHint} />
                       </label>
                       <input
                         id="register-phone"
@@ -334,7 +375,7 @@ function Auth({ language = 'en' }) {
 
                     <div className="col-md-6">
                       <label className="form-label fw-medium" htmlFor="register-password">
-                        {text.password}
+                        {text.password} <RequiredMark text={text.requiredHint} />
                       </label>
                       <input
                         id="register-password"
@@ -350,7 +391,7 @@ function Auth({ language = 'en' }) {
 
                     <div className="col-md-6">
                       <label className="form-label fw-medium" htmlFor="register-confirm-password">
-                        {text.confirmPassword}
+                        {text.confirmPassword} <RequiredMark text={text.requiredHint} />
                       </label>
                       <input
                         id="register-confirm-password"
@@ -376,7 +417,6 @@ function Auth({ language = 'en' }) {
                         name="dateOfBirth"
                         type="date"
                         className="form-control"
-                        required
                         value={registerData.dateOfBirth}
                         onChange={handleRegisterChange}
                       />
@@ -390,7 +430,6 @@ function Auth({ language = 'en' }) {
                         id="register-gender"
                         name="gender"
                         className="form-select"
-                        required
                         value={registerData.gender}
                         onChange={handleRegisterChange}
                       >
@@ -422,13 +461,14 @@ function Auth({ language = 'en' }) {
 
                     <div className="col-12">
                       <label className="form-label fw-medium" htmlFor="register-allergies">
-                        {text.allergies}
+                        {text.allergies} <RequiredMark text={text.requiredHint} />
                       </label>
                       <textarea
                         id="register-allergies"
                         name="allergies"
                         className="form-control"
                         rows="2"
+                        required
                         placeholder={text.allergiesPlaceholder}
                         value={registerData.allergies}
                         onChange={handleRegisterChange}
@@ -437,13 +477,14 @@ function Auth({ language = 'en' }) {
 
                     <div className="col-md-6">
                       <label className="form-label fw-medium" htmlFor="register-chronic-diseases">
-                        {text.chronicDiseases}
+                        {text.chronicDiseases} <RequiredMark text={text.requiredHint} />
                       </label>
                       <textarea
                         id="register-chronic-diseases"
                         name="chronicDiseases"
                         className="form-control"
                         rows="2"
+                        required
                         placeholder={text.chronicPlaceholder}
                         value={registerData.chronicDiseases}
                         onChange={handleRegisterChange}
@@ -452,13 +493,14 @@ function Auth({ language = 'en' }) {
 
                     <div className="col-md-6">
                       <label className="form-label fw-medium" htmlFor="register-current-medications">
-                        {text.currentMedications}
+                        {text.currentMedications} <RequiredMark text={text.requiredHint} />
                       </label>
                       <textarea
                         id="register-current-medications"
                         name="currentMedications"
                         className="form-control"
                         rows="2"
+                        required
                         placeholder={text.medicationPlaceholder}
                         value={registerData.currentMedications}
                         onChange={handleRegisterChange}
@@ -470,7 +512,7 @@ function Auth({ language = 'en' }) {
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label fw-medium" htmlFor="register-emergency-contact-name">
-                        {text.emergencyContactName}
+                        {text.emergencyContactName} <RequiredMark text={text.requiredHint} />
                       </label>
                       <input
                         id="register-emergency-contact-name"
@@ -485,7 +527,7 @@ function Auth({ language = 'en' }) {
 
                     <div className="col-md-6">
                       <label className="form-label fw-medium" htmlFor="register-emergency-contact-phone">
-                        {text.emergencyContactPhone}
+                        {text.emergencyContactPhone} <RequiredMark text={text.requiredHint} />
                       </label>
                       <input
                         id="register-emergency-contact-phone"
@@ -497,7 +539,6 @@ function Auth({ language = 'en' }) {
                         onChange={handleRegisterChange}
                       />
                     </div>
-
                   </div>
 
                   <button className="btn btn-lg text-white w-100 hospital-primary-btn py-3 mt-4" type="submit">
