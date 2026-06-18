@@ -27,6 +27,9 @@ app.use('/api/doctors', doctorRoutes);
 const appointmentRoutes = require('./routes/appointmentRoutes');
 app.use('/api/appointments', appointmentRoutes);
 
+const adminRoutes = require('./routes/adminRoutes');
+app.use('/api/admin', adminRoutes);
+
 // เปิดการทำงานของ Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

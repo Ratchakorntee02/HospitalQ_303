@@ -21,3 +21,15 @@ ALTER TABLE Appointments
 UPDATE Appointments
 SET status = 'confirmed'
 WHERE status NOT IN ('confirmed', 'completed', 'cancelled');
+
+CREATE TABLE IF NOT EXISTS Admins (
+  admin_id varchar(50) NOT NULL,
+  name varchar(100) NOT NULL,
+  email varchar(100) NOT NULL,
+  password varchar(255) NOT NULL,
+  PRIMARY KEY (admin_id),
+  UNIQUE KEY unique_admin_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+INSERT IGNORE INTO Admins (admin_id, name, email, password) VALUES
+('ADM001', 'Hospital Admin', 'admin@hospital.com', 'password123');

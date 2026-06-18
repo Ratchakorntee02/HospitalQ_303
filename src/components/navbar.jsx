@@ -13,6 +13,9 @@ const navText = {
     contact: 'Contact US',
     search: 'Search',
     login: 'Login/Register',
+    logout: 'Logout',
+    doctorDashboard: 'Doctor Dashboard',
+    adminDashboard: 'Admin Dashboard',
     language: 'Language',
   },
   th: {
@@ -26,11 +29,14 @@ const navText = {
     contact: 'ติดต่อเรา',
     search: 'ค้นหา',
     login: 'เข้าสู่ระบบ',
+    logout: 'ออกจากระบบ',
+    doctorDashboard: 'Doctor Dashboard',
+    adminDashboard: 'Admin Dashboard',
     language: 'ภาษา',
   },
 };
 
-function Navbar({ currentPage, language, onLanguageChange, onNavigate, onSearch }) {
+function Navbar({ currentPage, language, session, onLanguageChange, onLogout, onNavigate, onSearch }) {
   const [searchValue, setSearchValue] = useState('');
   const text = navText[language];
 
@@ -154,6 +160,32 @@ function Navbar({ currentPage, language, onLanguageChange, onNavigate, onSearch 
                 </li>
               </ul>
             </li>
+
+            {session?.role === 'doctor' && (
+              <li className="nav-item">
+                <button
+                  className={`nav-link nav-button text-white ${isActive('doctor-dashboard') ? 'active fw-bold' : ''}`}
+                  type="button"
+                  aria-current={isActive('doctor-dashboard') ? 'page' : undefined}
+                  onClick={() => onNavigate('doctor-dashboard')}
+                >
+                  {text.doctorDashboard}
+                </button>
+              </li>
+            )}
+
+            {session?.role === 'admin' && (
+              <li className="nav-item">
+                <button
+                  className={`nav-link nav-button text-white ${isActive('admin-dashboard') ? 'active fw-bold' : ''}`}
+                  type="button"
+                  aria-current={isActive('admin-dashboard') ? 'page' : undefined}
+                  onClick={() => onNavigate('admin-dashboard')}
+                >
+                  {text.adminDashboard}
+                </button>
+              </li>
+            )}
           </ul>
 
           <form className="d-flex align-items-center" onSubmit={handleSearchSubmit}>
@@ -182,8 +214,12 @@ function Navbar({ currentPage, language, onLanguageChange, onNavigate, onSearch 
                 TH
               </button>
             </div>
-            <button className="btn btn-success navbar-auth-btn" type="button" onClick={() => onNavigate('auth')}>
-              {text.login}
+            <button
+              className="btn btn-success navbar-auth-btn"
+              type="button"
+              onClick={session ? onLogout : () => onNavigate('auth')}
+            >
+              {session ? text.logout : text.login}
             </button>
           </form>
         </div>

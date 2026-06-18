@@ -606,6 +606,22 @@ body {
   margin-left: 2px;
 }
 
+.admin-stat-card {
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+.admin-stat-card span {
+  color: #5d6b78;
+  font-weight: 700;
+}
+
+.admin-stat-card strong {
+  color: #173b63;
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
 @media (max-width: 767.98px) {
   .queue-summary-divider {
     border-right: 0;

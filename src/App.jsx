@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import Navbar from './components/navbar.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
 import AnnualCheck from './pages/AnnualCheck.jsx';
 import Auth from './pages/Auth.jsx';
 import BookingQ from './pages/BookingQ.jsx';
 import BookingHistory from './pages/BookingHistory.jsx';
 import Contact from './pages/Contact.jsx';
+import DoctorDashboard from './pages/DoctorDashboard.jsx';
 import QueueStatus from './pages/QueueStatus.jsx';
 import TelemedicConsul from './pages/TelemedicConsul.jsx';
+import { clearAuthSession, getAuthSession } from './services/api.js';
 import './App.css';
 
 const searchIndex = [
@@ -97,6 +100,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [language, setLanguage] = useState('en');
   const [searchMessage, setSearchMessage] = useState('');
+  const [session, setSession] = useState(() => getAuthSession());
   const text = appText[language];
 
   useEffect(() => {
@@ -114,6 +118,28 @@ function App() {
   const handleNavigate = (page) => {
     setCurrentPage(page);
     setSearchMessage('');
+  };
+
+  const handleAuthSuccess = (nextSession) => {
+    setSession(nextSession);
+
+    if (nextSession?.role === 'doctor') {
+      handleNavigate('doctor-dashboard');
+      return;
+    }
+
+    if (nextSession?.role === 'admin') {
+      handleNavigate('admin-dashboard');
+      return;
+    }
+
+    handleNavigate('home');
+  };
+
+  const handleLogout = () => {
+    clearAuthSession();
+    setSession(null);
+    handleNavigate('home');
   };
 
   const handleSearch = (query) => {
@@ -154,7 +180,9 @@ function App() {
       <Navbar
         currentPage={currentPage}
         language={language}
+        session={session}
         onLanguageChange={setLanguage}
+        onLogout={handleLogout}
         onNavigate={handleNavigate}
         onSearch={handleSearch}
       />
@@ -200,7 +228,17 @@ function App() {
       ) : currentPage === 'auth' ? (
         <>
           {backButton}
-          <Auth language={language} />
+          <Auth language={language} onAuthSuccess={handleAuthSuccess} />
+        </>
+      ) : currentPage === 'doctor-dashboard' ? (
+        <>
+          {backButton}
+          <DoctorDashboard language={language} />
+        </>
+      ) : currentPage === 'admin-dashboard' ? (
+        <>
+          {backButton}
+          <AdminDashboard language={language} />
         </>
       ) : (
         <main className="container py-5">

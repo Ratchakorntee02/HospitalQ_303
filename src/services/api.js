@@ -45,12 +45,18 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   getDoctors: () => request('/doctors'),
+  getAdminSummary: () => request('/admin/summary'),
   bookAppointment: (payload) =>
     request('/appointments/book', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
   getPatientAppointments: (patientId) => request(`/appointments/patient/${patientId}`),
+  getDoctorAppointments: (doctorId) => request(`/appointments/doctor/${doctorId}`),
+  completeAppointment: (appointmentId) =>
+    request(`/appointments/complete/${appointmentId}`, {
+      method: 'PUT',
+    }),
   cancelAppointment: (appointmentId) =>
     request(`/appointments/cancel/${appointmentId}`, {
       method: 'PUT',
@@ -67,3 +73,7 @@ export const saveAuthSession = (session) => {
 };
 
 export const getAuthSession = getStoredAuth;
+
+export const clearAuthSession = () => {
+  localStorage.removeItem('hospitalQueueAuth');
+};

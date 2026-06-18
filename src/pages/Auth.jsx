@@ -120,7 +120,7 @@ function RequiredMark({ text }) {
   return <span className="auth-required-mark">{text}</span>;
 }
 
-function Auth({ language = 'en' }) {
+function Auth({ language = 'en', onAuthSuccess }) {
   const [activeMode, setActiveMode] = useState('login');
   const [loginData, setLoginData] = useState(initialLoginData);
   const [registerData, setRegisterData] = useState(initialRegisterData);
@@ -160,13 +160,16 @@ function Auth({ language = 'en' }) {
         password: loginData.password,
       });
 
-      saveAuthSession({
+      const nextSession = {
         token: result.token,
         role: result.role,
         user: result.user,
-      });
+      };
+
+      saveAuthSession(nextSession);
       setMessage(text.loginSuccess);
       setLoginData(initialLoginData);
+      onAuthSuccess?.(nextSession);
     } catch (apiError) {
       setError(apiError.message);
     }
