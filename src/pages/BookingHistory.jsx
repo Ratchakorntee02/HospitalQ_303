@@ -38,6 +38,16 @@ const fallbackBookings = [
 
 const tabs = ['all', 'upcoming', 'completed'];
 
+const getMinutesUntilAppointment = (booking) => {
+  const appointmentDateTime = new Date(`${booking.date}T${booking.time}`);
+
+  if (Number.isNaN(appointmentDateTime.getTime())) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return (appointmentDateTime.getTime() - Date.now()) / 60000;
+};
+
 const historyText = {
   en: {
     title: 'Booking History',
@@ -55,6 +65,8 @@ const historyText = {
     cancel: 'Cancel',
     empty: 'No booking records found for this filter.',
     cancelSuccess: 'Appointment cancelled successfully.',
+    cancelConfirm: 'Are you sure you want to cancel this appointment?',
+    cancelTooLate: 'Appointments can only be cancelled at least 1 hour before the scheduled time.',
     reschedulePrompt: 'Enter a new appointment date in YYYY-MM-DD format.',
     rescheduleSuccess: 'Appointment rescheduled successfully.',
     loginNotice: 'Login to load your real appointment history from the backend.',
@@ -75,6 +87,8 @@ const historyText = {
     cancel: 'ยกเลิก',
     empty: 'ไม่พบรายการจองในตัวกรองนี้',
     cancelSuccess: 'ยกเลิกนัดหมายสำเร็จ',
+    cancelConfirm: 'ยืนยันยกเลิกนัดหมายนี้หรือไม่?',
+    cancelTooLate: 'สามารถยกเลิกนัดหมายได้ก่อนเวลานัดอย่างน้อย 1 ชั่วโมงเท่านั้น',
     reschedulePrompt: 'กรอกวันนัดใหม่ในรูปแบบ YYYY-MM-DD',
     rescheduleSuccess: 'เลื่อนนัดหมายสำเร็จ',
     loginNotice: 'เข้าสู่ระบบเพื่อโหลดประวัติการจองจริงจาก backend',
@@ -160,6 +174,15 @@ function BookingHistory({ language = 'en' }) {
   };
 
   const handleCancel = async (booking) => {
+    if (getMinutesUntilAppointment(booking) < 60) {
+      setActionMessage(text.cancelTooLate);
+      return;
+    }
+
+    if (!window.confirm(text.cancelConfirm)) {
+      return;
+    }
+
     try {
       await api.cancelAppointment(booking.id);
       setActionMessage(text.cancelSuccess);
@@ -216,6 +239,7 @@ function BookingHistory({ language = 'en' }) {
               <tbody>
                 {filteredBookings.map((booking) => {
                   const normalizedStatus = normalizeStatus(booking.status);
+                  const canCancel = getMinutesUntilAppointment(booking) >= 60;
 
                   return (
                     <tr key={booking.id}>
@@ -253,6 +277,8 @@ function BookingHistory({ language = 'en' }) {
                             <button
                               className="btn btn-sm btn-outline-danger"
                               type="button"
+                              disabled={!canCancel}
+                              title={!canCancel ? text.cancelTooLate : ''}
                               onClick={() => handleCancel(booking)}
                             >
                               {text.cancel}

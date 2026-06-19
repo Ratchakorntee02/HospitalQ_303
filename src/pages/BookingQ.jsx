@@ -53,6 +53,12 @@ const timeSlots = [
   { id: '14:00:00', label: '02:00 - 03:00 PM (Full)', available: false },
 ];
 
+const demoBookedSlotsByDoctor = {
+  D001: ['10:00:00'],
+  D002: ['13:00:00'],
+  D003: ['09:00:00'],
+};
+
 const bookingText = {
   en: {
     department: 'Department',
@@ -68,6 +74,9 @@ const bookingText = {
     step2: 'Step 2: Select Date and Time',
     appointmentDate: 'Appointment Date',
     slots: 'Available Time Slots',
+    slotBooked: 'Already booked',
+    slotFull: 'Full',
+    availabilityNotice: 'The system checks available slots before booking. Unavailable times are locked for selection.',
     noteLabel: 'Current Symptoms',
     notePlaceholder: 'Describe current symptoms, concerns, or special requests for this visit.',
     noteEmpty: 'No additional note',
@@ -93,6 +102,9 @@ const bookingText = {
     step2: 'ขั้นตอนที่ 2: เลือกวันและเวลา',
     appointmentDate: 'วันที่นัดหมาย',
     slots: 'ช่วงเวลาที่ว่าง',
+    slotBooked: 'ไม่ว่าง',
+    slotFull: 'เต็ม',
+    availabilityNotice: 'ระบบตรวจสอบช่วงเวลาว่างก่อนจอง ช่วงเวลาที่ไม่ว่างจะเลือกไม่ได้',
     noteLabel: 'Current Symptoms',
     notePlaceholder: 'ระบุอาการที่เป็นอยู่ ความกังวล หรือคำขอเพิ่มเติมสำหรับการเข้ารับบริการครั้งนี้',
     noteEmpty: 'ไม่มีหมายเหตุเพิ่มเติม',
@@ -136,11 +148,35 @@ function BookingQ({ language = 'en' }) {
   const canGoStepTwo = departmentId && doctorId;
   const canGoStepThree = appointmentDate && timeSlot;
   const noteDisplay = bookingNote.trim() || text.noteEmpty;
-  const selectedTimeSlotLabel = timeSlots.find((slot) => slot.id === timeSlot)?.label || timeSlot;
+  const checkedTimeSlots = useMemo(() => {
+    const bookedTimes = appointmentDate ? demoBookedSlotsByDoctor[doctorId] || [] : [];
+
+    return timeSlots.map((slot) => {
+      const isBooked = bookedTimes.includes(slot.id);
+
+      return {
+        ...slot,
+        isBooked,
+        available: slot.available && !isBooked,
+      };
+    });
+  }, [appointmentDate, doctorId]);
+  const selectedTimeSlotLabel = checkedTimeSlots.find((slot) => slot.id === timeSlot)?.label || timeSlot;
 
   const handleDepartmentChange = (event) => {
     setDepartmentId(event.target.value);
     setDoctorId('');
+    setTimeSlot('');
+  };
+
+  const handleDoctorChange = (event) => {
+    setDoctorId(event.target.value);
+    setTimeSlot('');
+  };
+
+  const handleAppointmentDateChange = (event) => {
+    setAppointmentDate(event.target.value);
+    setTimeSlot('');
   };
 
   const resetForm = () => {
@@ -254,7 +290,7 @@ function BookingQ({ language = 'en' }) {
                 <select
                   className="form-select form-select-lg"
                   value={doctorId}
-                  onChange={(event) => setDoctorId(event.target.value)}
+                  onChange={handleDoctorChange}
                   disabled={!departmentId}
                 >
                   <option value="">{text.selectDoctor}</option>
@@ -298,24 +334,36 @@ function BookingQ({ language = 'en' }) {
                   type="date"
                   className="form-control form-control-lg"
                   value={appointmentDate}
-                  onChange={(event) => setAppointmentDate(event.target.value)}
+                  onChange={handleAppointmentDateChange}
                 />
               </div>
 
               <div className="mb-4">
                 <label className="form-label fw-medium d-block mb-2">{text.slots}</label>
+                {appointmentDate && (
+                  <div className="alert alert-info border-0 py-2 small">
+                    {text.availabilityNotice}
+                  </div>
+                )}
                 <div className="row g-2">
-                  {timeSlots.map((slot) => (
+                  {checkedTimeSlots.map((slot) => (
                     <div className="col-6" key={slot.id}>
                       <button
                         className={`btn w-100 py-2 ${
-                          timeSlot === slot.id ? 'btn-primary' : 'btn-outline-primary'
+                          slot.available
+                            ? timeSlot === slot.id ? 'btn-primary' : 'btn-outline-primary'
+                            : 'btn-outline-secondary'
                         }`}
                         type="button"
                         disabled={!slot.available}
                         onClick={() => setTimeSlot(slot.id)}
                       >
                         {slot.label}
+                        {!slot.available && (
+                          <span className="d-block small">
+                            {slot.isBooked ? text.slotBooked : text.slotFull}
+                          </span>
+                        )}
                       </button>
                     </div>
                   ))}
