@@ -15,7 +15,6 @@ const navText = {
     login: 'Login/Register',
     logout: 'Logout',
     doctorDashboard: 'Doctor Dashboard',
-    adminDashboard: 'Admin Dashboard',
     language: 'Language',
   },
   th: {
@@ -31,7 +30,6 @@ const navText = {
     login: 'เข้าสู่ระบบ',
     logout: 'ออกจากระบบ',
     doctorDashboard: 'Doctor Dashboard',
-    adminDashboard: 'Admin Dashboard',
     language: 'ภาษา',
   },
 };
@@ -174,18 +172,6 @@ function Navbar({ currentPage, language, session, onLanguageChange, onLogout, on
               </li>
             )}
 
-            {session?.role === 'admin' && (
-              <li className="nav-item">
-                <button
-                  className={`nav-link nav-button text-white ${isActive('admin-dashboard') ? 'active fw-bold' : ''}`}
-                  type="button"
-                  aria-current={isActive('admin-dashboard') ? 'page' : undefined}
-                  onClick={() => onNavigate('admin-dashboard')}
-                >
-                  {text.adminDashboard}
-                </button>
-              </li>
-            )}
           </ul>
 
           <form className="d-flex align-items-center" onSubmit={handleSearchSubmit}>

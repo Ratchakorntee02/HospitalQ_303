@@ -606,17 +606,17 @@ body {
   margin-left: 2px;
 }
 
-.admin-stat-card {
+.dashboard-stat-card {
   border-radius: 8px;
   background-color: #ffffff;
 }
 
-.admin-stat-card span {
+.dashboard-stat-card span {
   color: #5d6b78;
   font-weight: 700;
 }
 
-.admin-stat-card strong {
+.dashboard-stat-card strong {
   color: #173b63;
   font-size: 2rem;
   line-height: 1.1;

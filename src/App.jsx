@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import Navbar from './components/navbar.jsx';
-import AdminDashboard from './pages/AdminDashboard.jsx';
 import AnnualCheck from './pages/AnnualCheck.jsx';
 import Auth from './pages/Auth.jsx';
 import BookingQ from './pages/BookingQ.jsx';
@@ -128,11 +127,6 @@ function App() {
       return;
     }
 
-    if (nextSession?.role === 'admin') {
-      handleNavigate('admin-dashboard');
-      return;
-    }
-
     handleNavigate('home');
   };
 
@@ -234,11 +228,6 @@ function App() {
         <>
           {backButton}
           <DoctorDashboard language={language} />
-        </>
-      ) : currentPage === 'admin-dashboard' ? (
-        <>
-          {backButton}
-          <AdminDashboard language={language} />
         </>
       ) : (
         <main className="container py-5">

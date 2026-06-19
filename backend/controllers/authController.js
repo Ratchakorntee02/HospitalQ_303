@@ -73,11 +73,6 @@ const login = async (req, res) => {
             role = 'doctor';
         }
 
-        if (users.length === 0) {
-            [users] = await db.execute('SELECT * FROM Admins WHERE email = ?', [email]);
-            role = 'admin';
-        }
-
         // 4. ถ้าหาไม่เจอทั้งสองตาราง แปลว่าอีเมลผิด
         if (users.length === 0) {
             return res.status(401).json({ error: 'อีเมลไม่ถูกต้อง หรือไม่มีในระบบ' });
@@ -93,7 +88,7 @@ const login = async (req, res) => {
         // 6. ล็อกอินสำเร็จ -> สร้าง JWT Token (บัตรผ่าน)
         const token = jwt.sign(
             { 
-                id: role === 'patient' ? user.patient_id : role === 'doctor' ? user.doctor_id : user.admin_id,
+                id: role === 'patient' ? user.patient_id : user.doctor_id,
                 role: role 
             }, 
             process.env.JWT_SECRET, 
@@ -106,7 +101,7 @@ const login = async (req, res) => {
             token: token, // <--- สิ่งที่เพิ่มเข้ามา!
             role: role,
             user: {
-                id: role === 'patient' ? user.patient_id : role === 'doctor' ? user.doctor_id : user.admin_id,
+                id: role === 'patient' ? user.patient_id : user.doctor_id,
                 name: user.name,
                 email: user.email
             }
