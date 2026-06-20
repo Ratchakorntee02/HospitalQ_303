@@ -120,6 +120,8 @@ function RequiredMark({ text }) {
   return <span className="auth-required-mark">{text}</span>;
 }
 
+const onlyDigits = (value, maxLength) => value.replace(/\D/g, '').slice(0, maxLength);
+
 function Auth({ language = 'en', onAuthSuccess }) {
   const [activeMode, setActiveMode] = useState('login');
   const [loginData, setLoginData] = useState(initialLoginData);
@@ -138,9 +140,14 @@ function Auth({ language = 'en', onAuthSuccess }) {
 
   const handleRegisterChange = (event) => {
     const { name, value } = event.target;
+    const nextValue = {
+      patientId: onlyDigits(value, 13),
+      phone: onlyDigits(value, 10),
+    }[name] ?? value;
+
     setRegisterData((currentData) => ({
       ...currentData,
-      [name]: value,
+      [name]: nextValue,
     }));
   };
 
@@ -341,6 +348,10 @@ function Auth({ language = 'en', onAuthSuccess }) {
                         type="text"
                         className="form-control"
                         required
+                        inputMode="numeric"
+                        maxLength="13"
+                        pattern="[0-9]{13}"
+                        title="Patient ID must be exactly 13 digits."
                         value={registerData.patientId}
                         onChange={handleRegisterChange}
                       />
@@ -371,6 +382,10 @@ function Auth({ language = 'en', onAuthSuccess }) {
                         type="tel"
                         className="form-control"
                         required
+                        inputMode="numeric"
+                        maxLength="10"
+                        pattern="[0-9]{10}"
+                        title="Phone number must be exactly 10 digits."
                         value={registerData.phone}
                         onChange={handleRegisterChange}
                       />
