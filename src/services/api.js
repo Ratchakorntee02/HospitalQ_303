@@ -44,6 +44,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  getProfile: () => request('/auth/profile'),
+  updateProfile: (payload) =>
+    request('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
   getDoctors: () => request('/doctors'),
   bookAppointment: (payload) =>
     request('/appointments/book', {
@@ -54,6 +60,7 @@ export const api = {
   getDoctorAppointments: (doctorId) => request(`/appointments/doctor/${doctorId}`),
   getDoctorDailyReport: (doctorId, date) => request(`/appointments/report/${doctorId}/${date}`),
   getDoctorAlert: (doctorId) => request(`/appointments/doctor/${doctorId}/alert`),
+  getQueueStatus: (appointmentId) => request(`/appointments/status/${appointmentId}`),
   completeAppointment: (appointmentId) =>
     request(`/appointments/complete/${appointmentId}`, {
       method: 'PUT',
