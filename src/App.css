@@ -295,6 +295,37 @@ body {
   color: #1b7f46;
 }
 
+.history-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background-color: rgba(23, 43, 68, 0.45);
+}
+
+.history-reschedule-modal {
+  width: min(100%, 414px);
+  border-radius: 14px;
+  background-color: #ffffff;
+  box-shadow: 0 24px 60px rgba(23, 43, 68, 0.28);
+  padding: 22px;
+}
+
+.history-modal-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  background-color: #eef4fa;
+  font-size: 1.45rem;
+}
+
 .annual-check-intro {
   max-width: 720px;
 }

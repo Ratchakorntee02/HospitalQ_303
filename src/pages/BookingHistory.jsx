@@ -38,6 +38,23 @@ const fallbackBookings = [
 
 const tabs = ['all', 'upcoming', 'completed'];
 
+const rescheduleTimeSlots = [
+  { value: '09:00:00', label: '09:00 - 10:00 AM' },
+  { value: '10:00:00', label: '10:00 - 11:00 AM' },
+  { value: '13:00:00', label: '01:00 - 02:00 PM' },
+  { value: '14:00:00', label: '02:00 - 03:00 PM' },
+];
+
+const toDateInputValue = (dateValue) => {
+  const parsedDate = new Date(dateValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  return parsedDate.toISOString().slice(0, 10);
+};
+
 const getMinutesUntilAppointment = (booking) => {
   const appointmentDateTime = new Date(`${booking.date}T${booking.time}`);
 
@@ -68,6 +85,11 @@ const historyText = {
     cancelConfirm: 'Are you sure you want to cancel this appointment?',
     cancelTooLate: 'Appointments can only be cancelled at least 1 hour before the scheduled time.',
     reschedulePrompt: 'Enter a new appointment date in YYYY-MM-DD format.',
+    rescheduleTitle: 'Reschedule Appointment',
+    newDate: 'New appointment date',
+    newTime: 'New appointment time',
+    close: 'Close',
+    confirmReschedule: 'Confirm Reschedule',
     rescheduleSuccess: 'Appointment rescheduled successfully.',
     loginNotice: 'Login to load your real appointment history from the backend.',
   },
@@ -121,6 +143,11 @@ function BookingHistory({ language = 'en' }) {
   const [actionMessage, setActionMessage] = useState('');
   const [bookingRecords, setBookingRecords] = useState(fallbackBookings);
   const [isUsingFallback, setIsUsingFallback] = useState(true);
+  const [rescheduleBooking, setRescheduleBooking] = useState(null);
+  const [rescheduleForm, setRescheduleForm] = useState({
+    date: '',
+    time: '',
+  });
   const text = historyText[language];
 
   const refreshAppointments = useCallback(() => {
@@ -154,19 +181,34 @@ function BookingHistory({ language = 'en' }) {
     return bookingRecords.filter((booking) => normalizeStatus(booking.status) === activeTab);
   }, [activeTab, bookingRecords]);
 
-  const handleReschedule = async (booking) => {
-    const newDate = window.prompt(text.reschedulePrompt, booking.date);
+  const openRescheduleModal = (booking) => {
+    setActionMessage('');
+    setRescheduleBooking(booking);
+    setRescheduleForm({
+      date: toDateInputValue(booking.date),
+      time: booking.time || rescheduleTimeSlots[0].value,
+    });
+  };
 
-    if (!newDate) {
+  const closeRescheduleModal = () => {
+    setRescheduleBooking(null);
+    setRescheduleForm({ date: '', time: '' });
+  };
+
+  const handleRescheduleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!rescheduleBooking) {
       return;
     }
 
     try {
-      await api.rescheduleAppointment(booking.id, {
-        new_date: newDate,
-        new_time: booking.time,
+      await api.rescheduleAppointment(rescheduleBooking.id, {
+        new_date: rescheduleForm.date,
+        new_time: rescheduleForm.time,
       });
       setActionMessage(text.rescheduleSuccess);
+      closeRescheduleModal();
       refreshAppointments();
     } catch (apiError) {
       setActionMessage(apiError.message);
@@ -270,7 +312,7 @@ function BookingHistory({ language = 'en' }) {
                             <button
                               className="btn btn-sm btn-outline-primary"
                               type="button"
-                              onClick={() => handleReschedule(booking)}
+                              onClick={() => openRescheduleModal(booking)}
                             >
                               {text.reschedule}
                             </button>
@@ -308,6 +350,66 @@ function BookingHistory({ language = 'en' }) {
           )}
         </div>
       </section>
+
+      {rescheduleBooking && (
+        <div className="history-modal-backdrop" role="presentation">
+          <div className="history-reschedule-modal" role="dialog" aria-modal="true" aria-labelledby="reschedule-title">
+            <div className="text-center mb-3">
+              <div className="history-modal-icon" aria-hidden="true">📅</div>
+              <h4 className="fw-bold text-dark-blue mb-1" id="reschedule-title">
+                {text.rescheduleTitle || 'Reschedule Appointment'}
+              </h4>
+              <p className="text-muted mb-0">
+                {rescheduleBooking.doctor} · {rescheduleBooking.department}
+              </p>
+            </div>
+
+            <form onSubmit={handleRescheduleSubmit}>
+              <div className="mb-3">
+                <label className="form-label fw-semibold" htmlFor="reschedule-date">
+                  {text.newDate || 'New appointment date'}
+                </label>
+                <input
+                  className="form-control"
+                  id="reschedule-date"
+                  type="date"
+                  required
+                  value={rescheduleForm.date}
+                  onChange={(event) => setRescheduleForm((current) => ({ ...current, date: event.target.value }))}
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="form-label fw-semibold" htmlFor="reschedule-time">
+                  {text.newTime || 'New appointment time'}
+                </label>
+                <select
+                  className="form-select"
+                  id="reschedule-time"
+                  required
+                  value={rescheduleForm.time}
+                  onChange={(event) => setRescheduleForm((current) => ({ ...current, time: event.target.value }))}
+                >
+                  {rescheduleTimeSlots.map((slot) => (
+                    <option key={slot.value} value={slot.value}>
+                      {slot.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="d-flex justify-content-end gap-2">
+                <button className="btn btn-light border" type="button" onClick={closeRescheduleModal}>
+                  {text.close || 'Close'}
+                </button>
+                <button className="btn btn-primary" type="submit">
+                  {text.confirmReschedule || 'Confirm Reschedule'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
